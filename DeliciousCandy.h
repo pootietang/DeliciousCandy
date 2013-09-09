@@ -22,13 +22,9 @@
 
 //========================== CONSTANTS =================================
 
-#define NO_ACTIVE_NODE   255 // unusable node_id signifying no active node
+#define SECOND 			 1000000 //  number of microseconds / second
 
-enum CALLBACK_TYPES {
-  CB_STATIC,
-  CB_CONTROLLER,
-  CB_NODE
-};
+#define NO_ACTIVE_NODE   255 // unusable node_id signifying no active node
 
 enum MSG_TYPES {
   ATTACH_NODE = 'a',
@@ -62,56 +58,46 @@ typedef struct {
 // forward declarations necessary so CandyNet can contain pointers to
 // CandyController and CandyNode member functions
 class CandyController;
-class CandyNode;
+//class CandyNode;
 //======================================================================
 
 class CandyNet
 {
   public:
-    Message* msg_in;
-    Message* msg_out;
-
-    CandyNet(byte node_id,CandyController* controller,unsigned long node_timeout);
-    CandyNet(byte node_id,CandyNode* node);
-    CandyNet(byte node_id,void (*cb_rx)(void),void (*cb_rx_timeout)(void),unsigned long node_timeout);
-    CandyNet(byte node_id,void (*cb_rx)(void),void (*cb_rx_timeout)(void));
-    void heartbeat();
+    Message msg_in;
+    Message msg_out;
+    CandyNet(byte node_id,void (*cb_rx)(void),void (*cb_rx_timeout)(void),void (*cb_debug)(char*),unsigned long node_timeout);
+    void poll();
     void send_msg();
     void send_msg_expectantly();
-    boolean busy();
-    void reset_rx_timeout();
-    void rx_seq_complete();
-    
-  private:
-    enum CALLBACK_TYPES _cb_type;
+  protected:
     boolean _wireless_tx_pending, _wireless_rx_pending;
+    byte _node_id;
     unsigned long _node_timeout;
     unsigned long _timeout_at;
     void (*_cb_rx)(void);
     void (*_cb_rx_timeout)(void);
-    CandyController* _controller;
-    CandyNode* _node;
-
-    void init(byte node_id, unsigned long node_timeout, CALLBACK_TYPES cb);    
+    void (*_cb_debug)(char msg[]);
+    void debug(char*);
+    boolean busy();
     void wireless_rx();
     void wireless_tx();
-    void do_rx_callback();
-    void do_rx_timeout_callback();
+    void reset_rx_timeout();
+    void rx_seq_complete();
+
+    virtual void do_rx_callback();
+    virtual void do_rx_timeout_callback();    
 };
 
 //======================================================================
 
-class CandyController
+class CandyController : public CandyNet
 {
   public:
-    CandyController(void (*cb_rx)(void),void (*cb_rx_timeout)(void),unsigned long node_timeout);
-    CandyController(void (*cb_rx)(void),void (*cb_rx_timeout)(void));
+    CandyController(void (*cb_rx)(void),void (*cb_rx_timeout)(void),void (*cb_debug)(char*),unsigned long node_timeout);    
     void heartbeat();
-    void catch_rx();
-    void catch_timeout();
     void register_node(byte node_id, unsigned long poll_interval);
-
-  private:
+  protected:
     typedef struct {
       byte node_id;
       unsigned long poll_interval;
@@ -120,32 +106,13 @@ class CandyController
     Node _nodes[MAX_NODE_COUNT];
     byte _node_count;
     byte _active_node;
-    CandyNet *_network;
-    void (*_cb_rx)(void);
-    void (*_cb_rx_timeout)(void);
-    
-    byte get_node_idx(byte node_id);
     void schedule_next_poll(byte node_id);
+    byte get_node_idx(byte node_id);
     void check_clock();
     void begin_node_poll(byte node_id);
     void end_node_poll();
-
-};
-
-//======================================================================
-
-class CandyNode
-{
-  public:
-    CandyNode(byte node_id,void (*cb_update_sensors)(void));
-    void heartbeat();
-    void catch_rx();
-    void catch_timeout();
-    void send_sensor_byte(byte sensor_id, byte sensor_reading);
-    void done_updating();
-  private:
-    CandyNet *_network;
-    void (*_cb_update_sensors)(void);
+    void do_rx_callback();
+    void do_rx_timeout_callback();
 };
 
 //======================================================================
