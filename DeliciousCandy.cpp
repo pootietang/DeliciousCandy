@@ -23,7 +23,10 @@ CandyNet::CandyNet(
   _wireless_tx_pending = false;
   _wireless_rx_pending = false;	
   _timeout_at = 0;
-  rf12_initialize(_node_id,RF12_FREQ);
+
+  _radio = RFM12B();
+  _radio.Initialize(_node_id,RF12_FREQ);
+
 }
 
 //--------------------------------------------------------------------//
@@ -53,22 +56,26 @@ boolean CandyNet::busy(){
 //--------------------------------------------------------------------//
 
 void CandyNet::wireless_rx(){
-  if (rf12_recvDone() && rf12_crc == 0) {
+	
+  if (_radio.ReceiveComplete() && _radio.CRCPass()) {
     memcpy(&msg_in, (byte*) rf12_data, rf12_len);
     do_rx_callback();
-    rf12_recvDone();
   }
+  
 }
 
 //--------------------------------------------------------------------//
 
 void CandyNet::wireless_tx(){
-  if (_wireless_tx_pending && rf12_canSend()) {
-    //rf12_sendStart(msg_out.node_id, &msg_out, sizeof(msg_out));
-    // wait for send to finish in "NORMAL" mode (eg no power down)
-    rf12_sendWait(0);
+  if (_wireless_tx_pending && _radio.CanSend()) {
+    _radio.SendStart( msg_out.node_id,
+                     &msg_out,
+                      sizeof(msg_out),
+                      false, // no ACKing for now
+                      false, // no ACKing for now
+                      1); // should invoke SLEEP_MODE_IDLE; consider more aggressive measures for battery power 
     _wireless_tx_pending = false;
-  } 
+  }
 }
 
 //--------------------------------------------------------------------//
@@ -115,6 +122,7 @@ void CandyNet::send_msg_expectantly(){
 void CandyNet::rx_seq_complete(){
   _wireless_rx_pending = false;
   debug("CN: rx seq done");
+  //_wireless_tx_pending = false;
 }
 
 ////////////////////////////////////////////////////////////////////////

@@ -7,8 +7,7 @@
 #define DeliciousCandy_h
 
 #include "Arduino.h"
-#include "../JeeLib/RF12.h"
-#include "../JeeLib/Ports.h"
+#include "RFM12B.h"
 
 //=========================== HARDWARE =================================
 
@@ -71,6 +70,7 @@ class CandyNet
     void send_msg();
     void send_msg_expectantly();
   protected:
+    RFM12B _radio;
     boolean _wireless_tx_pending, _wireless_rx_pending;
     byte _node_id;
     unsigned long _node_timeout;
